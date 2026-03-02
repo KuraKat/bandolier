@@ -48,13 +48,22 @@ run_level 1 "cat ./-"
 run_level 2 "cat ./--spaces\ in\ this\ filename--"
 
 # Level 3-> 4
-run_level 3 "cat ./inhere/...Hiding-From-You"
+run_level 3 "cat \$(find inhere -name '.*' -type f)"
 
 # Level 4 -> 5
-run_level 4 "file ./inhere/* | grep text && cat ./inhere/-file07"
+run_level 4 "cat \$(file inhere/* | grep 'text' | cut -d ':' -f 1)"
 
 # Level 5 -> 6
-run_level 5 "find -size 1033c -not -executable -exec file {} +  -exec cat {} + | tr -d " ""
+run_level 5 "cat \$(find inhere -type f -size 1033c ! -executable)"
 
 # Level 6 -> 7
+run_level 6 "cat \$(find / -user bandit7 -group bandit6 -size 33c 2> /dev/null)"
 
+# Level 7 -> 8
+run_level 7 "grep \"millionth\" data.txt"
+
+# Level 8 -> 9
+run_level 8 "cat data.txt | sort | uniq -u"
+
+# Level 9 -> 10
+run_level 9 "strings data.txt | grep 'grep' | awk \'{print \$NF}\'"
