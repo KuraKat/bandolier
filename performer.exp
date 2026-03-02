@@ -1,0 +1,42 @@
+#!/usr/bin/expect -f
+
+# Set variables
+set user [lindex $argv 0]
+set pass [lindex $argv 1]
+set cmd  [lindex $argv 2]
+
+# Human-like typing speed (min_delay, average, max_delay)
+set send_human {.05 .1 1 .02 .1}
+
+# Start SSH
+spawn ssh -p 2220 -o StrictHostKeyChecking=no "${user}@bandit.labs.overthewire.org"
+
+# Wait for password prompt
+expect "password:"
+sleep 0.5
+send -h "$pass\r"
+
+# Wait for the shell prompt
+expect "$ "
+
+# Type the command slowly so we can watch
+sleep 0.5
+send -h "$cmd\r"
+
+# Wait for the output and capture the next password
+# We look for a 32-character alphanumeric string
+set next_pass ""
+expect -re "(\[a-zA-Z0-9\]{32})" {
+    set next_pass $expect_out(1,string)
+}
+
+# Stay on the screen for a second so the user can see the result
+sleep 1
+send "exit\r"
+
+# Pass the found password back to the Bash script via a temp file
+set f [open "last_pass.txt" w]
+puts $f $next_pass
+close $f
+
+expect eof
