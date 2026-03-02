@@ -1,69 +1,82 @@
 #!/bin/bash
 
-# Define some colors for the "Hacker" look
+# --- CONFIGURATION & COLORS ---
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'
+NC='\033[0m'
 
-# The starting password
+# Default values
+START_LEVEL=0
 CURRENT_PASS="bandit0"
 
+# --- ARGUMENT PARSING ---
+# Usage: ./director.sh -l 5 -p PASSWORD
+while getopts "l:p:" opt; do
+  case $opt in
+    l) START_LEVEL=$OPTARG ;;
+    p) CURRENT_PASS=$OPTARG ;;
+    *) echo "Usage: $0 -l <level_to_start_at> -p <password_for_that_level>"; exit 1 ;;
+  esac
+done
+
+# Create password dump
+echo "" > bandit_pass.txt
+
+# We store the command needed to get the NEXT level's password
+# CMDS[0] is the command to run on bandit0 to get bandit1's pass
+declare -a CMDS
+CMDS[0]="cat readme"
+CMDS[1]="cat ./-"
+CMDS[2]="cat ./--spaces\ in\ this\ filename--"
+CMDS[3]="cat \$(find inhere -name '.*' -type f)"
+CMDS[4]="cat \$(file inhere/* | grep 'text' | cut -d ':' -f 1)"
+CMDS[5]="cat \$(find inhere -type f -size 1033c ! -executable)"
+CMDS[6]="cat \$(find / -user bandit7 -group bandit6 -size 33c 2>/dev/null)"
+CMDS[7]="grep 'millionth' data.txt | awk '{print \$NF}'"
+CMDS[8]="sort data.txt | uniq -u"
+CMDS[9]="strings data.txt | grep '===' | awk '{print \$NF}'"
+CMDS[10]="base64 -d data.txt  | awk '{print \$NF}'"
+CMDS[11]="tr [A-Za-z] [N-ZA-Mn-za-m] < data.txt | awk '{print \$NF}'"
+CMDS[12]="MYDIR=/tmp/work\$(date +%s); mkdir \$MYDIR; cp data.txt \$MYDIR/; cd \$MYDIR; xxd -r data.txt data; while true; do TYPE=\$(file -b data); echo -e \"\n[!] CURRENT TYPE: \$TYPE\"; case \"\$TYPE\" in *\"gzip\"*) mv data data.gz && gunzip data.gz; [ -f data.out ] && mv data.out data; ls -la data ;; *\"bzip2\"*) mv data data.bz2 && bunzip2 data.bz2; [ -f data.out ] && mv data.out data; ls -la data ;; *\"tar\"*) TFILE=\$(tar -tf data | head -n 1); tar -xf data && mv \"\$TFILE\" data; ls -la data ;; *\"ASCII text\"*) echo -e \"\n[+] FINAL FILE REACHED:\"; cat data | awk '{print \$NF}'; break ;; *) echo \"Unknown: \$TYPE\"; ls -la; break ;; esac; done"
+
+# --- THE EXECUTION ---
 run_level() {
     local level=$1
     local cmd=$2
 
     echo -e "${CYAN}--------------------------------------------------${NC}"
-    echo -e "${YELLOW}[!] TARGETING: BANDIT LEVEL $level${NC}"
-    echo -e "${YELLOW}[!] USING PASS: $CURRENT_PASS${NC}"
+    echo -e "${YELLOW}[!] ATTACKING LEVEL: $level -> $((level+1))${NC}"
     echo -e "${CYAN}--------------------------------------------------${NC}"
-    sleep 1
 
-    # Run the expect script
+    # Run the performer script (Expect)
     ./performer.exp "bandit$level" "$CURRENT_PASS" "$cmd"
 
-    # Read the password found by the expect script
+    # Capture the password for the next level
     if [ -f "last_pass.txt" ]; then
         NEW_PASS=$(cat last_pass.txt)
         if [ -n "$NEW_PASS" ]; then
-            echo -e "\n${GREEN}[+] SUCCESS! Password Found: $NEW_PASS${NC}\n"
+  	    echo "Password $level - $((level+1))" >> bandit_pass.txt
+	    echo "$NEW_PASS" >> bandit_pass.txt
+            echo -e "\n${GREEN}[+] SUCCESS! Password for Level $((level+1)): $NEW_PASS${NC}\n"
             CURRENT_PASS=$NEW_PASS
             rm last_pass.txt
-        else
-            echo -e "\n${RED}[-] FAILED TO FIND PASSWORD${NC}"
-            exit 1
+            return 0
         fi
     fi
+    
+    echo -e "\n${RED}[-!] FAILED TO RETRIEVE PASSWORD${NC}"
+    exit 1
 }
 
-# --- THE SCRIPT SEQUENCE ---
+# --- MAIN LOOP ---
+echo -e "${GREEN}Starting automation from Level $START_LEVEL...${NC}"
 
-# Level 0 -> 1
-run_level 0 "cat readme"
+for (( i=$START_LEVEL; i<${#CMDS[@]}; i++ )); do
+    echo "$START_LEVEL"
+    run_level "$i" "${CMDS[$i]}"
+    sleep 2 # Just to make it look cool/readable
+done
 
-# Level 1 -> 2
-run_level 1 "cat ./-"
-
-# Level 2 -> 3
-run_level 2 "cat ./--spaces\ in\ this\ filename--"
-
-# Level 3-> 4
-run_level 3 "cat \$(find inhere -name '.*' -type f)"
-
-# Level 4 -> 5
-run_level 4 "cat \$(file inhere/* | grep 'text' | cut -d ':' -f 1)"
-
-# Level 5 -> 6
-run_level 5 "cat \$(find inhere -type f -size 1033c ! -executable)"
-
-# Level 6 -> 7
-run_level 6 "cat \$(find / -user bandit7 -group bandit6 -size 33c 2> /dev/null)"
-
-# Level 7 -> 8
-run_level 7 "grep \"millionth\" data.txt"
-
-# Level 8 -> 9
-run_level 8 "cat data.txt | sort | uniq -u"
-
-# Level 9 -> 10
-run_level 9 "strings data.txt | grep 'grep' | awk \'{print \$NF}\'"
+echo -e "${GREEN}Automation complete or reached end of logic table.${NC}"
