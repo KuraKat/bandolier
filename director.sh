@@ -24,22 +24,25 @@ done
 # Create password dump
 echo "" > bandit_pass.txt
 
+#
 # We store the command needed to get the NEXT level's password
 # CMDS[0] is the command to run on bandit0 to get bandit1's pass
 declare -a CMDS
-CMDS[0]="cat readme"
-CMDS[1]="cat ./-"
-CMDS[2]="cat ./--spaces\ in\ this\ filename--"
-CMDS[3]="cat \$(find inhere -name '.*' -type f)"
-CMDS[4]="cat \$(file inhere/* | grep 'text' | cut -d ':' -f 1)"
-CMDS[5]="cat \$(find inhere -type f -size 1033c ! -executable)"
-CMDS[6]="cat \$(find / -user bandit7 -group bandit6 -size 33c 2>/dev/null)"
-CMDS[7]="grep 'millionth' data.txt | awk '{print \$NF}'"
-CMDS[8]="sort data.txt | uniq -u"
-CMDS[9]="strings data.txt | grep '===' | awk '{print \$NF}'"
-CMDS[10]="base64 -d data.txt  | awk '{print \$NF}'"
-CMDS[11]="tr [A-Za-z] [N-ZA-Mn-za-m] < data.txt | awk '{print \$NF}'"
-CMDS[12]="MYDIR=/tmp/work\$(date +%s); mkdir \$MYDIR; cp data.txt \$MYDIR/; cd \$MYDIR; xxd -r data.txt data; while true; do TYPE=\$(file -b data); echo -e \"\n[!] CURRENT TYPE: \$TYPE\"; case \"\$TYPE\" in *\"gzip\"*) mv data data.gz && gunzip data.gz; [ -f data.out ] && mv data.out data; ls -la data ;; *\"bzip2\"*) mv data data.bz2 && bunzip2 data.bz2; [ -f data.out ] && mv data.out data; ls -la data ;; *\"tar\"*) TFILE=\$(tar -tf data | head -n 1); tar -xf data && mv \"\$TFILE\" data; ls -la data ;; *\"ASCII text\"*) echo -e \"\n[+] FINAL FILE REACHED:\"; cat data | awk '{print \$NF}'; break ;; *) echo \"Unknown: \$TYPE\"; ls -la; break ;; esac; done"
+
+CMDS[0]="echo -n 'RESULT:'; cat readme"
+CMDS[1]="echo -n 'RESULT:'; cat ./-"
+CMDS[2]="echo -n 'RESULT:'; cat ./--spaces\ in\ this\ filename--"
+CMDS[3]="echo -n 'RESULT:'; cat \$(find inhere -name '.*' -type f)"
+CMDS[4]="echo -n 'RESULT:'; cat \$(file inhere/* | grep 'text' | cut -d ':' -f 1)"
+CMDS[5]="echo -n 'RESULT:'; cat \$(find inhere -type f -size 1033c ! -executable)"
+CMDS[6]="echo -n 'RESULT:'; cat \$(find / -user bandit7 -group bandit6 -size 33c 2>/dev/null)"
+CMDS[7]="echo -n 'RESULT:'; grep 'millionth' data.txt | awk '{print \$NF}'"
+CMDS[8]="echo -n 'RESULT:'; sort data.txt | uniq -u"
+CMDS[9]="echo -n 'RESULT:'; strings data.txt | grep '===' | awk '{print \$NF}'"
+CMDS[10]="echo -n 'RESULT:'; base64 -d data.txt | awk '{print \$NF}'"
+CMDS[11]="echo -n 'RESULT:'; tr 'A-Za-z' 'N-ZA-Mn-za-m' < data.txt | awk '{print \$NF}'"
+CMDS[12]="PAYLOAD:scripts/level12.sh"
+
 
 # --- THE EXECUTION ---
 run_level() {
@@ -74,8 +77,27 @@ run_level() {
 echo -e "${GREEN}Starting automation from Level $START_LEVEL...${NC}"
 
 for (( i=$START_LEVEL; i<${#CMDS[@]}; i++ )); do
+    RAW_CMD="${CMDS[$i]}"
+    FINAL_CMD=""
+
+    if [[ "$RAW_CMD" == PAYLOAD:* ]]; then
+	SCRIPT_PATH="${RAW_CMD#PAYLOAD:}"
+	echo "$SCRIPT_PATH"
+        if [ -f "$SCRIPT_PATH" ]; then
+  	    echo -e "${CYAN}[i] Encoding payload: $SCRIPT_PATH${NC}"
+
+	    B64_CONTENT=$(cat "$SCRIPT_PATH" | base64 -w 0)
+	    FINAL_CMD="echo "$B64_CONTENT" | base64 -d | bash"
+        else
+	    echo -e "${RED}[!] Error: Payload file $SCRIPT_PATH not found!${NC}"
+	    exit 1
+	fi
+    else
+	FINAL_CMD="$RAW_CMD"
+    fi
+
     echo "$START_LEVEL"
-    run_level "$i" "${CMDS[$i]}"
+    run_level "$i" "$FINAL_CMD"
     sleep 2 # Just to make it look cool/readable
 done
 
