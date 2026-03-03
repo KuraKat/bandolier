@@ -25,6 +25,8 @@ send -h "$cmd\r"
 
 # Wait for the output and capture the next password
 # We look for a 32-character alphanumeric string
+expect "RESULT:"
+
 set next_pass ""
 expect -re "(\[a-zA-Z0-9\]{32})" {
     set next_pass $expect_out(1,string)
